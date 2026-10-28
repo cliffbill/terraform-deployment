@@ -1,0 +1,62 @@
+﻿name: 'Terraform Multi-Cloud Pipeline'
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloud_provider:
+        description: 'Proveedor Cloud a desplegar'
+        required: true
+        default: 'gcp'
+        type: choice
+        options:
+          - aws
+          - azure
+          - gcp
+      action:
+        description: 'Acción a ejecutar'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform Lifecycle'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: environments/${{ inputs.cloud_provider }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.6.0'
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: ${{ inputs.action == 'plan' || inputs.action == 'apply' }}
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: ${{ inputs.action == 'apply' }}
+        run: terraform apply -input=false tfplan
+
+      - name: Terraform Destroy
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform destroy -auto-approve
